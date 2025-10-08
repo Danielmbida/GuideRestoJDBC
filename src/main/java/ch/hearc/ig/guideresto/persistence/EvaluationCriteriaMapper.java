@@ -20,7 +20,6 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
     public EvaluationCriteriaMapper(Connection connection) {
         this.connection = connection;
     }
-
     /**
      * Recherche un critère d'évaluation par son identifiant.
      * @param id identifiant du critère
@@ -35,7 +34,6 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                // Mapping du ResultSet vers un objet métier
                 return new EvaluationCriteria(
                         rs.getInt("numero"),
                         rs.getString("nom"),
@@ -81,16 +79,31 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
      */
     @Override
     public EvaluationCriteria create(EvaluationCriteria object) {
-        String query = "INSERT INTO CRITERES_EVALUATION (numero, nom, description) " +
-                "VALUES (SEQ_CRITERES_EVALUATION.NEXTVAL , ?, ?)";
-        try (PreparedStatement p = connection.prepareStatement(query)) {
-            p.setString(1, object.getName());
-            p.setString(2, object.getDescription());
-            p.executeUpdate();
+        String query = "INSERT INTO CRITERES_EVALUATION (nom, description) " +
+                "VALUES (?, ?)";
+
+        String getQuery = "SELECT * FROM CRITERES_EVALUATION WHERE nom = ?";
+
+        try (
+             PreparedStatement insertStmt = connection.prepareStatement(query);
+             PreparedStatement selectStmt = connection.prepareStatement(getQuery)
+        ){
+            insertStmt.setString(1, object.getName());
+            insertStmt.setString(2, object.getDescription());
+            insertStmt.executeUpdate();
+
             connection.commit();
-            return object;
+            selectStmt.setString(1, object.getName());
+            ResultSet rs = selectStmt.executeQuery();
+            if (rs.next()) {
+                return new EvaluationCriteria(
+                        rs.getInt("numero"),
+                        rs.getString("nom"),
+                        rs.getString("description"));
+            }
+
+            return null;
         } catch (SQLException ex) {
-            // Erreur ORA-00001 (contrainte unique violée)
             if (ex.getErrorCode() == 1) {
                 logger.error("Le nom '{}' existe déjà (contrainte unique)", object.getName());
             } else {
