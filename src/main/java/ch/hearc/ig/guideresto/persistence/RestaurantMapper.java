@@ -12,13 +12,15 @@ import java.sql.SQLException;
 import java.util.Set;
 
 public class RestaurantMapper extends AbstractMapper<Restaurant> {
-    private Connection connection;
+    private final Connection connection;
 
-    private RestaurantTypeMapper restaurantTypeMapper;
-    private CityMapper cityMapper;
+    private final RestaurantTypeMapper restaurantTypeMapper;
+    private final CityMapper cityMapper;
 
-    public RestaurantMapper(Connection connection) {
+    public RestaurantMapper(Connection connection, RestaurantTypeMapper restaurantTypeMapper, CityMapper cityMapper) {
         this.connection = connection;
+        this.restaurantTypeMapper = restaurantTypeMapper;
+        this.cityMapper = cityMapper;
     }
 
     @Override
@@ -36,9 +38,10 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                         rs.getString("nom"),
                         rs.getString("description"),
                         rs.getString("site_web"),
-                        new Localisation(rs.getString("adress"), cityMapper.findById(rs.getInt("fk_vill")),
-                                restaurantTypeMapper.findById(rs.getInt("fk_type"))));
-
+                        rs.getString("adresse"),
+                        cityMapper.findById(rs.getInt("fk_vill")),
+                        restaurantTypeMapper.findById(rs.getInt("fk_type"))
+                );
             }
         } catch (SQLException e) {
             logger.error("SQLException: {}", e.getMessage());
