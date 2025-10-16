@@ -57,15 +57,15 @@ public class CityMapper extends AbstractMapper<City>{
     @Override
     public City create(City object) {
         try{
-            PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO VILLES('code_postal', 'nom_ville') VALUES(?,?)");
+            PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO VILLES(code_postal, nom_ville) VALUES(?,?)");
             preparedStatement.setString(1, object.getZipCode());
             preparedStatement.setString(2, object.getCityName());
             preparedStatement.executeUpdate();
-
+            connection.commit();
             PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT *  FROM VILLES WHERE code_postal = ?");
             preparedStatement2.setString(1, object.getZipCode());
             ResultSet resultSet = preparedStatement2.executeQuery();
-            while(resultSet.next()){
+            if(resultSet.next()){
                 return new City(resultSet.getInt("numero"), resultSet.getString("code_postal"), resultSet.getString("nom_ville"));
             }
             return null;

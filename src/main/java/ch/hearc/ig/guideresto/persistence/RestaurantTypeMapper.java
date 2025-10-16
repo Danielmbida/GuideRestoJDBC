@@ -18,10 +18,16 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
         this.connection = connection;
     }
 
+    /**
+     * Recherche un type gastronomique par son identifiant (NUMERO).
+     *
+     * @param id Identifiant unique du type gastronomique à rechercher.
+     * @return L'objet RestaurantType correspondant, ou null s'il n'existe pas.
+     */
     @Override
     public RestaurantType findById(int id) {
-        String query = "select * from TYPES_GASTRONOMIQUES where NUMERO = ?";
-        try{
+        String query = "SELECT * FROM TYPES_GASTRONOMIQUES WHERE NUMERO = ?";
+        try {
             PreparedStatement stmt = this.connection.prepareStatement(query);
             stmt.setInt(1, id);
             ResultSet rs = stmt.executeQuery();
@@ -30,15 +36,21 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
                 return new RestaurantType(
                         rs.getInt("NUMERO"),
                         rs.getString("libelle"),
-                        rs.getString("DESCRIPTION"));
+                        rs.getString("DESCRIPTION")
+                );
             }
         } catch (SQLException e) {
-            logger.error("SQLException: {}", e.getMessage());
+            logger.error("Erreur lors de la recherche du type gastronomique avec l'ID {} : {}", id, e.getMessage());
             throw new RuntimeException(e);
         }
         return null;
     }
 
+    /**
+     * Récupère tous les types gastronomiques existants dans la base de données.
+     *
+     * @return Un Set contenant tous les objets RestaurantType.
+     */
     @Override
     public Set<RestaurantType> findAll() {
         String query = "SELECT * FROM TYPES_GASTRONOMIQUES";
@@ -46,56 +58,69 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
             PreparedStatement stmt = this.connection.prepareStatement(query);
             ResultSet rs = stmt.executeQuery();
 
-            Set<RestaurantType> restaurantsTypes = new HashSet<>();
+            Set<RestaurantType> restaurantTypes = new HashSet<>();
             while (rs.next()) {
-                restaurantsTypes.add(new RestaurantType(
-                        rs.getInt("numero"),
-                        rs.getString("labelle"),
+                restaurantTypes.add(new RestaurantType(
+                        rs.getInt("NUMERO"),
+                        rs.getString("libelle"), // corrigé labelle → libelle
                         rs.getString("description")
                 ));
             }
-            return restaurantsTypes;
+            return restaurantTypes;
         } catch (SQLException ex) {
-            logger.error("SQLException: {}", ex.getMessage());
+            logger.error("Erreur lors de la récupération de la liste des types gastronomiques : {}", ex.getMessage());
+            throw new RuntimeException(ex);
         }
-        return null;
     }
 
+    /**
+     * Crée un nouveau type gastronomique dans la base de données.
+     *
+     * @param object L'objet RestaurantType à insérer.
+     * @return Le RestaurantType nouvellement créé (récupéré depuis la base), ou null si l'insertion échoue.
+     */
     @Override
     public RestaurantType create(RestaurantType object) {
-        String query = "INSERT INTO TYPES_GASTRONOMIQUES (LIBELLE, description) " +
-                "VALUES (?, ?)";
-
+        String query = "INSERT INTO TYPES_GASTRONOMIQUES (LIBELLE, description) VALUES (?, ?)";
         String getQuery = "SELECT * FROM TYPES_GASTRONOMIQUES WHERE LIBELLE = ?";
 
         try (
                 PreparedStatement insertStmt = connection.prepareStatement(query);
                 PreparedStatement selectStmt = connection.prepareStatement(getQuery)
-        ){
+        ) {
             insertStmt.setString(1, object.getLabel());
             insertStmt.setString(2, object.getDescription());
             insertStmt.executeUpdate();
 
             connection.commit();
+
             selectStmt.setString(1, object.getLabel());
             ResultSet rs = selectStmt.executeQuery();
             if (rs.next()) {
                 return new RestaurantType(
                         rs.getInt("numero"),
                         rs.getString("libelle"),
-                        rs.getString("description"));
+                        rs.getString("description")
+                );
             }
             return null;
+
         } catch (SQLException ex) {
             if (ex.getErrorCode() == 1) {
                 logger.error("Le nom '{}' existe déjà (contrainte unique)", object.getLabel());
             } else {
-                logger.error("SQLException: {}", ex.getMessage());
+                logger.error("Erreur lors de la création du type gastronomique '{}' : {}", object.getLabel(), ex.getMessage());
             }
             return null;
         }
     }
 
+    /**
+     * Met à jour un type gastronomique existant dans la base de données.
+     *
+     * @param object L'objet RestaurantType contenant les nouvelles informations.
+     * @return true si la mise à jour a réussi, false sinon.
+     */
     @Override
     public boolean update(RestaurantType object) {
         String query = "UPDATE TYPES_GASTRONOMIQUES SET LIBELLE = ?, description = ? WHERE numero = ?";
@@ -104,15 +129,23 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
             stmt.setString(1, object.getLabel());
             stmt.setString(2, object.getDescription());
             stmt.setInt(3, object.getId());
+
             stmt.executeUpdate();
             connection.commit();
+
             return stmt.getUpdateCount() == 1;
         } catch (SQLException ex) {
-            logger.error("SQLException: {}", ex.getMessage());
+            logger.error("Erreur lors de la mise à jour du type gastronomique avec l'ID {} : {}", object.getId(), ex.getMessage());
+            return false;
         }
-        return false;
     }
 
+    /**
+     * Supprime un type gastronomique de la base de données.
+     *
+     * @param object L'objet RestaurantType à supprimer.
+     * @return true si la suppression a réussi, false sinon.
+     */
     @Override
     public boolean delete(RestaurantType object) {
         String query = "DELETE FROM TYPES_GASTRONOMIQUES WHERE numero = ?";
@@ -121,11 +154,12 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
             stmt.setInt(1, object.getId());
             stmt.executeUpdate();
             connection.commit();
+
             return true;
         } catch (SQLException ex) {
-            logger.error("SQLException: {}", ex.getMessage());
+            logger.error("Erreur lors de la suppression du type gastronomique avec l'ID {} : {}", object.getId(), ex.getMessage());
+            return false;
         }
-        return false;
     }
 
     @Override
