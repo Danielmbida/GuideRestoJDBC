@@ -26,18 +26,23 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
      */
     @Override
     public RestaurantType findById(int id) {
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        }
+
         String query = "SELECT * FROM TYPES_GASTRONOMIQUES WHERE NUMERO = ?";
-        try {
-            PreparedStatement stmt = this.connection.prepareStatement(query);
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, id);
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return new RestaurantType(
+                RestaurantType type = new RestaurantType(
                         rs.getInt("NUMERO"),
                         rs.getString("libelle"),
                         rs.getString("DESCRIPTION")
                 );
+                addToCache(type);
+                return type;
             }
         } catch (SQLException e) {
             logger.error("Erreur lors de la recherche du type gastronomique avec l'ID {} : {}", id, e.getMessage());
@@ -54,23 +59,31 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
     @Override
     public Set<RestaurantType> findAll() {
         String query = "SELECT * FROM TYPES_GASTRONOMIQUES";
-        try {
-            PreparedStatement stmt = this.connection.prepareStatement(query);
-            ResultSet rs = stmt.executeQuery();
+        Set<RestaurantType> restaurantTypes = new HashSet<>();
 
-            Set<RestaurantType> restaurantTypes = new HashSet<>();
+        try (PreparedStatement stmt = connection.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                restaurantTypes.add(new RestaurantType(
-                        rs.getInt("NUMERO"),
-                        rs.getString("libelle"), // corrigé labelle → libelle
-                        rs.getString("description")
-                ));
+                int id = rs.getInt("NUMERO");
+                RestaurantType type = cache.get(id);
+
+                if (type == null) {
+                    type = new RestaurantType(
+                            id,
+                            rs.getString("libelle"),
+                            rs.getString("description")
+                    );
+                    addToCache(type);
+                }
+
+                restaurantTypes.add(type);
             }
-            return restaurantTypes;
+
         } catch (SQLException ex) {
             logger.error("Erreur lors de la récupération de la liste des types gastronomiques : {}", ex.getMessage());
             throw new RuntimeException(ex);
         }
+        return restaurantTypes;
     }
 
     /**
@@ -103,6 +116,7 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
                         rs.getString("description")
                 );
             }
+            resetCache();
             return null;
 
         } catch (SQLException ex) {
@@ -132,7 +146,7 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
 
             stmt.executeUpdate();
             connection.commit();
-
+            removeFromCache(object.getId());
             return stmt.getUpdateCount() == 1;
         } catch (SQLException ex) {
             logger.error("Erreur lors de la mise à jour du type gastronomique avec l'ID {} : {}", object.getId(), ex.getMessage());
@@ -154,6 +168,7 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
             stmt.setInt(1, object.getId());
             stmt.executeUpdate();
             connection.commit();
+            removeFromCache(object.getId());
 
             return true;
         } catch (SQLException ex) {

@@ -17,41 +17,53 @@ public class CityMapper extends AbstractMapper<City>{
     }
 
     @Override
-    public City findById(int id){
-        try{
-            PreparedStatement preparedStatement = connection.prepareStatement("SELECT *  FROM VILLES WHERE numero = ?");
-
-            preparedStatement.setInt(1, id);
-
-            ResultSet resultSet = preparedStatement.executeQuery();
-            if(resultSet.next()){
-                return new City(resultSet.getInt("numero"), resultSet.getString("code_postal"), resultSet.getString("nom_ville"));
-            }
-            return null;
-
-        }catch(Exception e){
-            logger.error("Error en CityMapper.findById", e);
-            return null;
+    public City findById(int id) {
+        if (cache.containsKey(id)) {
+            return cache.get(id);
         }
-
-
+        String query = "SELECT * FROM VILLES WHERE numero = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, id);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                City city = new City(
+                        rs.getInt("numero"),
+                        rs.getString("code_postal"),
+                        rs.getString("nom_ville")
+                );
+                addToCache(city);
+                return city;
+            }
+        } catch (Exception e) {
+            logger.error("Erreur dans CityMapper.findById", e);
+        }
+        return null;
     }
 
     @Override
     public Set<City> findAll() {
-        try{
-            PreparedStatement preparedStatement = connection.prepareStatement("SELECT *  FROM VILLES");
-            ResultSet resultSet = preparedStatement.executeQuery();
-            Set<City> set = new HashSet<>();
-            while(resultSet.next()){
-                set.add(new City(resultSet.getInt("numero"), resultSet.getString("code_postal"), resultSet.getString("nom_ville")));
+        String query = "SELECT * FROM VILLES";
+        Set<City> cities = new HashSet<>();
+        try (PreparedStatement stmt = connection.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                int id = rs.getInt("numero");
+                City city = cache.get(id);
+                if (city == null) {
+                    city = new City(
+                            id,
+                            rs.getString("code_postal"),
+                            rs.getString("nom_ville")
+                    );
+                    addToCache(city);
+                }
+                cities.add(city);
             }
-            return set;
-        }catch(Exception e){
-            logger.error("Error en CityMapper.findAll", e);
-            return null;
+            return cities;
+        } catch (Exception e) {
+            logger.error("Erreur dans CityMapper.findAll", e);
+            return new HashSet<>();
         }
-
     }
 
     @Override
@@ -68,6 +80,7 @@ public class CityMapper extends AbstractMapper<City>{
             if(resultSet.next()){
                 return new City(resultSet.getInt("numero"), resultSet.getString("code_postal"), resultSet.getString("nom_ville"));
             }
+            resetCache();
             return null;
         }catch(Exception e){
             logger.error("Error en CityMapper.create", e);
@@ -83,6 +96,7 @@ public class CityMapper extends AbstractMapper<City>{
             preparedStatement.setString(2, object.getZipCode());
             preparedStatement.setInt(3, object.getId());
             preparedStatement.executeUpdate();
+            removeFromCache(object.getId());
             return true;
         }catch(Exception e){
             logger.error("Error en CityMapper.update", e);
@@ -96,6 +110,7 @@ public class CityMapper extends AbstractMapper<City>{
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM VILLES WHERE numero = ?");
             preparedStatement.setInt(1, object.getId());
             preparedStatement.executeUpdate();
+            removeFromCache(object.getId());
             return true;
         }catch(Exception e){
             logger.error("Error en CityMapper.delete", e);
@@ -109,6 +124,7 @@ public class CityMapper extends AbstractMapper<City>{
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM VILLES WHERE numero = ?");
             preparedStatement.setInt(1, id);
             preparedStatement.executeUpdate();
+            removeFromCache(id);
             return true;
         }catch(Exception e){
             logger.error("Error en CityMapper.delete", e);

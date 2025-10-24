@@ -3,6 +3,7 @@ package ch.hearc.ig.guideresto.persistence;
 import ch.hearc.ig.guideresto.business.BasicEvaluation;
 import ch.hearc.ig.guideresto.business.City;
 import ch.hearc.ig.guideresto.business.IBusinessObject;
+import ch.hearc.ig.guideresto.business.Restaurant;
 
 import java.sql.Connection;
 import java.sql.Date;
@@ -21,6 +22,9 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
     }
     @Override
     public BasicEvaluation findById(int id) {
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        }
         try{
             PreparedStatement preparedStatement = connection.prepareStatement("SELECT *  FROM LIKES WHERE numero = ?");
 
@@ -29,7 +33,14 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
             ResultSet resultSet = preparedStatement.executeQuery();
             if(resultSet.next()){
                 //permet de récupérer a l'aide d'autre mapper les objets business nécéssaire et convertit le boolean qui est un char dans la base de données
-                return new BasicEvaluation(resultSet.getDate("date_eval"), restaurantMapper.findById(resultSet.getInt("fk_rest")), (resultSet.getString("APPRECIATION")=="T" ? true : false), resultSet.getString("ADRESSE_IP"));
+                BasicEvaluation basicEvaluation = new  BasicEvaluation(
+                        resultSet.getDate("date_eval"),
+                        restaurantMapper.findById(resultSet.getInt("fk_rest")),
+                        (resultSet.getString("APPRECIATION")=="T" ? true : false),
+                        resultSet.getString("ADRESSE_IP")
+                );
+                this.addToCache(basicEvaluation);
+                return this.cache.get(id);
             }
             return null;
 
@@ -40,13 +51,24 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
     }
 
     @Override
-    public Set findAll() {
+    public Set<BasicEvaluation> findAll() {
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("SELECT *  FROM LIKES");
             ResultSet resultSet = preparedStatement.executeQuery();
             Set<BasicEvaluation> set = new HashSet();
             while(resultSet.next()){
-                set.add(new BasicEvaluation(resultSet.getDate("date_eval"), restaurantMapper.findById(resultSet.getInt("fk_rest")), (resultSet.getString("APPRECIATION")=="T" ? true : false), resultSet.getString("ADRESSE_IP")));
+                int id = resultSet.getInt("numero");
+                BasicEvaluation basicEvaluation = cache.get(id);
+                if(basicEvaluation == null){
+                     basicEvaluation = new  BasicEvaluation(
+                            resultSet.getDate("date_eval"),
+                            restaurantMapper.findById(resultSet.getInt("fk_rest")),
+                            (resultSet.getString("APPRECIATION")=="T" ? true : false),
+                            resultSet.getString("ADRESSE_IP")
+                    );
+                    this.addToCache(basicEvaluation);
+                }
+                set.add(basicEvaluation);
             }
             return set;
         }catch(Exception e){
@@ -77,6 +99,7 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
             if(resultSet.next()){
                 return new BasicEvaluation(resultSet.getDate("date_eval"), restaurantMapper.findById(resultSet.getInt("fk_rest")), (resultSet.getString("APPRECIATION")=="T" ? true : false), resultSet.getString("ADRESSE_IP"));
             }
+            resetCache();
             return null;
         }catch(Exception e){
             logger.error("Error en CityMapper.create", e);
@@ -95,11 +118,13 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
             preparedStatement.setInt(4, object.getRestaurant().getId());
             preparedStatement.setInt(5, object.getId());
             preparedStatement.executeUpdate();
+            removeFromCache(object.getId());
             return  true;
         }catch(Exception e){
             logger.error("Error en CityMapper.update", e);
             return false;
         }
+
     }
 
     @Override
@@ -108,6 +133,7 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM LIKES WHERE numero = ?");
             preparedStatement.setInt(1, object.getId());
             preparedStatement.executeUpdate();
+            removeFromCache(object.getId());
             return true;
         }catch(Exception e){
             logger.error("Error en CityMapper.delete", e);
@@ -122,6 +148,7 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM LIKES WHERE numero = ?");
             preparedStatement.setInt(1, id);
             preparedStatement.executeUpdate();
+            removeFromCache(id);
             return true;
         }catch(Exception e){
             logger.error("Error en CityMapper.deleteById", e);

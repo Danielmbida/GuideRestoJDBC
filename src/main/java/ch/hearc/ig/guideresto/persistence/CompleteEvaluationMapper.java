@@ -26,18 +26,23 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
      */
     @Override
     public CompleteEvaluation findById(int id) {
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        }
         String query = "SELECT * FROM COMMENTAIRES WHERE NUMERO = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return new CompleteEvaluation(
+                    CompleteEvaluation evaluation = new CompleteEvaluation(
                             rs.getInt("numero"),
                             rs.getDate("date_eval"),
                             restaurantMapper.findById(rs.getInt("fk_rest")),
                             rs.getString("commentaire"),
                             rs.getString("nom_utilisateur")
                     );
+                    addToCache(evaluation);
+                    return evaluation;
                 }
             }
         } catch (SQLException e) {
@@ -58,19 +63,29 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
         Set<CompleteEvaluation> evaluations = new LinkedHashSet<>();
         try (PreparedStatement stmt = connection.prepareStatement(query);
              ResultSet rs = stmt.executeQuery()) {
+
             while (rs.next()) {
-                evaluations.add(new CompleteEvaluation(
-                        rs.getInt("numero"),
-                        rs.getDate("data_eval"),
-                        restaurantMapper.findById(rs.getInt("fk_rest")),
-                        rs.getString("commentaire"),
-                        rs.getString("nom_utilisateur")
-                ));
+                int id = rs.getInt("numero");
+                CompleteEvaluation evaluation = cache.get(id);
+                if (evaluation == null) {
+                    evaluation = new CompleteEvaluation(
+                            id,
+                            rs.getDate("date_eval"),
+                            restaurantMapper.findById(rs.getInt("fk_rest")),
+                            rs.getString("commentaire"),
+                            rs.getString("nom_utilisateur")
+                    );
+                    addToCache(evaluation);
+                }
+
+                evaluations.add(evaluation);
             }
+
         } catch (SQLException e) {
             logger.error("Erreur lors de la récupération des évaluations complètes : {}", e.getMessage());
             throw new RuntimeException(e);
         }
+
         return evaluations;
     }
 
@@ -95,6 +110,7 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
             }
 
             connection.commit();
+            resetCache();
             return findById(object.getId());
         } catch (SQLException e) {
             logger.error("Erreur lors de la création de l'évaluation complète : {}", e.getMessage());
@@ -119,6 +135,7 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
             stmt.setInt(5, object.getId());
 
             int rows = stmt.executeUpdate();
+            removeFromCache(object.getId());
             connection.commit();
             return rows == 1;
         } catch (SQLException e) {
@@ -163,6 +180,7 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
             int rows = commentStmt.executeUpdate();
 
             connection.commit();
+            removeFromCache(id);
             return rows == 1;
         } catch (SQLException e) {
             logger.error("Erreur lors de la suppression de l'évaluation complète avec ID {} : {}", id, e.getMessage());

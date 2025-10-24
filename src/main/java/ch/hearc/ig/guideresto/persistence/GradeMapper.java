@@ -28,17 +28,22 @@ public class GradeMapper extends AbstractMapper<Grade> {
      */
     @Override
     public Grade findById(int id) {
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        }
         String query = "SELECT * FROM NOTES WHERE numero = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return new Grade(
+                    Grade grade = new Grade(
                             rs.getInt("numero"),
                             rs.getInt("note"),
                             completeEvaluationMapper.findById(rs.getInt("fk_comm")),
                             evaluationCriteriaMapper.findById(rs.getInt("fk_crit"))
                     );
+                    addToCache(grade);
+                    return grade;
                 }
             }
         } catch (SQLException e) {
@@ -57,15 +62,24 @@ public class GradeMapper extends AbstractMapper<Grade> {
     public Set<Grade> findAll() {
         String query = "SELECT * FROM NOTES";
         Set<Grade> grades = new LinkedHashSet<>();
+
         try (PreparedStatement stmt = connection.prepareStatement(query);
              ResultSet rs = stmt.executeQuery()) {
+
             while (rs.next()) {
-                grades.add(new Grade(
-                        rs.getInt("numero"),
-                        rs.getInt("note"),
-                        completeEvaluationMapper.findById(rs.getInt("fk_comm")),
-                        evaluationCriteriaMapper.findById(rs.getInt("fk_crit"))
-                ));
+                int id = rs.getInt("numero");
+                Grade grade = cache.get(id);
+
+                if (grade == null) {
+                    grade = new Grade(
+                            id,
+                            rs.getInt("note"),
+                            completeEvaluationMapper.findById(rs.getInt("fk_comm")),
+                            evaluationCriteriaMapper.findById(rs.getInt("fk_crit"))
+                    );
+                    addToCache(grade);
+                }
+                grades.add(grade);
             }
         } catch (SQLException e) {
             logger.error("Erreur lors de la récupération des notes : {}", e.getMessage());
@@ -92,6 +106,7 @@ public class GradeMapper extends AbstractMapper<Grade> {
             if (affectedRows == 0) {
                 throw new SQLException("Aucune note insérée.");
             }
+            resetCache();
             connection.commit();
             return findById(object.getId());
         } catch (SQLException e) {
@@ -115,6 +130,7 @@ public class GradeMapper extends AbstractMapper<Grade> {
             stmt.setInt(3, object.getCriteria().getId());
             stmt.setInt(4, object.getId());
             int rows = stmt.executeUpdate();
+            removeFromCache(object.getId());
             connection.commit();
             return rows == 1;
         } catch (SQLException e) {
@@ -146,6 +162,7 @@ public class GradeMapper extends AbstractMapper<Grade> {
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, id);
             int rows = stmt.executeUpdate();
+            removeFromCache(id);
             connection.commit();
             return rows == 1;
         } catch (SQLException e) {

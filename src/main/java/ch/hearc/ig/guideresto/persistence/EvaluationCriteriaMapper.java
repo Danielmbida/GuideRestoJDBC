@@ -27,18 +27,23 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
      */
     @Override
     public EvaluationCriteria findById(int id) {
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        }
+
         String query = "SELECT * FROM CRITERES_EVALUATION WHERE numero = ?";
-        try {
-            PreparedStatement stmt = this.connection.prepareStatement(query);
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, id);
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return new EvaluationCriteria(
+                EvaluationCriteria criteria = new EvaluationCriteria(
                         rs.getInt("numero"),
                         rs.getString("nom"),
                         rs.getString("description")
                 );
+                addToCache(criteria);
+                return criteria;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
@@ -53,23 +58,32 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
     @Override
     public Set<EvaluationCriteria> findAll() {
         String query = "SELECT * FROM CRITERES_EVALUATION";
-        try {
-            PreparedStatement stmt = this.connection.prepareStatement(query);
-            ResultSet rs = stmt.executeQuery();
+        Set<EvaluationCriteria> evaluationCriteria = new HashSet<>();
 
-            Set<EvaluationCriteria> evaluationCriteria = new HashSet<>();
+        try (PreparedStatement stmt = connection.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+
             while (rs.next()) {
-                evaluationCriteria.add(new EvaluationCriteria(
-                        rs.getInt("numero"),
-                        rs.getString("nom"),
-                        rs.getString("description")
-                ));
+                int id = rs.getInt("numero");
+                EvaluationCriteria criteria = cache.get(id);
+
+                if (criteria == null) {
+                    criteria = new EvaluationCriteria(
+                            id,
+                            rs.getString("nom"),
+                            rs.getString("description")
+                    );
+                    addToCache(criteria);
+                }
+
+                evaluationCriteria.add(criteria);
             }
-            return evaluationCriteria;
+
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
         }
-        return null;
+
+        return evaluationCriteria;
     }
 
     /**
@@ -101,7 +115,7 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
                         rs.getString("nom"),
                         rs.getString("description"));
             }
-
+            resetCache();
             return null;
         } catch (SQLException ex) {
             if (ex.getErrorCode() == 1) {
@@ -127,6 +141,7 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
             stmt.setString(2, object.getDescription());
             stmt.setInt(3, object.getId());
             stmt.executeUpdate();
+            removeFromCache(object.getId());
             connection.commit();
             return stmt.getUpdateCount() == 1;
         } catch (SQLException ex) {
@@ -147,6 +162,7 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
             PreparedStatement stmt = this.connection.prepareStatement(query);
             stmt.setInt(1, object.getId());
             stmt.executeUpdate();
+            removeFromCache(object.getId());
             connection.commit();
             return true;
         } catch (SQLException ex) {

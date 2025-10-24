@@ -30,6 +30,10 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
      */
     @Override
     public Restaurant findById(int id) {
+        // Vérifie si le restaurant est déjà dans le cache
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        }
         String query = "SELECT * FROM RESTAURANTS WHERE NUMERO = ?";
         try {
             PreparedStatement stmt = this.connection.prepareStatement(query);
@@ -37,7 +41,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return new Restaurant(
+                Restaurant restaurant = new Restaurant(
                         rs.getInt("numero"),
                         rs.getString("nom"),
                         rs.getString("description"),
@@ -46,6 +50,8 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                         cityMapper.findById(rs.getInt("fk_vill")),
                         restaurantTypeMapper.findById(rs.getInt("fk_type"))
                 );
+                this.addToCache(restaurant);
+                return this.cache.get(restaurant.getId());
             }
         } catch (SQLException e) {
             logger.error("Erreur lors de la recherche du restaurant avec l'ID {} : {}", id, e.getMessage());
@@ -68,15 +74,21 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             Set<Restaurant> restaurants = new HashSet<>();
 
             while (rs.next()) {
-                restaurants.add(new Restaurant(
-                        rs.getInt("numero"),
-                        rs.getString("nom"),
-                        rs.getString("description"),
-                        rs.getString("site_web"),
-                        rs.getString("adresse"),
-                        cityMapper.findById(rs.getInt("fk_vill")),
-                        restaurantTypeMapper.findById(rs.getInt("fk_type"))
-                ));
+                int id = rs.getInt("numero");
+                Restaurant restaurant = cache.get(id);
+                if (restaurant == null) {
+                    restaurant = new Restaurant(
+                            id,
+                            rs.getString("nom"),
+                            rs.getString("description"),
+                            rs.getString("site_web"),
+                            rs.getString("adresse"),
+                            cityMapper.findById(rs.getInt("fk_vill")),
+                            restaurantTypeMapper.findById(rs.getInt("fk_type"))
+                    );
+                    this.addToCache(restaurant);
+                }
+                restaurants.add(restaurant);
             }
             return restaurants;
 
@@ -120,7 +132,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             if (rs.next()) {
                 return findById(rs.getInt("numero"));
             }
-
+            resetCache();
             connection.close();
         } catch (SQLException e) {
             logger.error("Erreur lors de la création du restaurant '{}' : {}", object.getName(), e.getMessage());
@@ -150,7 +162,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
             stmt.executeUpdate();
             connection.commit();
-
+            removeFromCache(object.getId());
             return stmt.getUpdateCount() == 1;
 
         } catch (SQLException e) {
@@ -197,7 +209,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             int rows = deleteRestaurantStmt.executeUpdate();
 
             connection.commit();
-
+            removeFromCache(restaurantId);
             return rows == 1;
         } catch (SQLException e) {
             logger.error("Erreur lors de la suppression du restaurant avec ID {} : {}", object.getId(), e.getMessage());
