@@ -14,10 +14,10 @@ public class GradeMapper extends AbstractMapper<Grade> {
     private final CompleteEvaluationMapper completeEvaluationMapper;
     private final EvaluationCriteriaMapper evaluationCriteriaMapper;
 
-    public GradeMapper(Connection connection, CompleteEvaluationMapper completeEvaluationMapper, EvaluationCriteriaMapper evaluationCriteriaMapper) {
+    public GradeMapper(Connection connection) {
         this.connection = connection;
-        this.completeEvaluationMapper = completeEvaluationMapper;
-        this.evaluationCriteriaMapper = evaluationCriteriaMapper;
+        this.completeEvaluationMapper = new CompleteEvaluationMapper(connection);
+        this.evaluationCriteriaMapper = new EvaluationCriteriaMapper(connection);
     }
 
     /**

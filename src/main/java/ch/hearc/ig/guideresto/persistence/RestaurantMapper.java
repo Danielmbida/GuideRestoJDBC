@@ -167,19 +167,44 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
      */
     @Override
     public boolean delete(Restaurant object) {
-        String query = "DELETE FROM RESTAURANTS WHERE numero = ?";
-        try {
-            PreparedStatement stmt = this.connection.prepareStatement(query);
-            stmt.setInt(1, object.getId());
-            stmt.executeUpdate();
+        String deleteGradesQuery = "DELETE FROM NOTES WHERE fk_comm IN (SELECT numero FROM COMMENTAIRES WHERE fk_rest = ?)";
+        String deleteCommentsQuery = "DELETE FROM COMMENTAIRES WHERE fk_rest = ?";
+        String deleteLikesQuery = "DELETE FROM LIKES WHERE fk_rest = ?";
+        String deleteRestaurantQuery = "DELETE FROM RESTAURANTS WHERE numero = ?";
+
+        try (
+                PreparedStatement deleteGradesStmt = connection.prepareStatement(deleteGradesQuery);
+                PreparedStatement deleteCommentsStmt = connection.prepareStatement(deleteCommentsQuery);
+                PreparedStatement deleteLikesStmt = connection.prepareStatement(deleteLikesQuery);
+                PreparedStatement deleteRestaurantStmt = connection.prepareStatement(deleteRestaurantQuery);
+        ) {
+            int restaurantId = object.getId();
+
+            // Supprimer les notes liées aux commentaires du restaurant
+            deleteGradesStmt.setInt(1, restaurantId);
+            deleteGradesStmt.executeUpdate();
+
+            // Supprimer les commentaires du restaurant
+            deleteCommentsStmt.setInt(1, restaurantId);
+            deleteCommentsStmt.executeUpdate();
+
+            // Supprimer les likes du restaurant
+            deleteLikesStmt.setInt(1, restaurantId);
+            deleteLikesStmt.executeUpdate();
+
+            // Supprimer le restaurant
+            deleteRestaurantStmt.setInt(1, restaurantId);
+            int rows = deleteRestaurantStmt.executeUpdate();
+
             connection.commit();
 
-            return true;
+            return rows == 1;
         } catch (SQLException e) {
-            logger.error("Erreur lors de la suppression du restaurant avec l'ID {} : {}", object.getId(), e.getMessage());
+            logger.error("Erreur lors de la suppression du restaurant avec ID {} : {}", object.getId(), e.getMessage());
             throw new RuntimeException(e);
         }
     }
+
 
     @Override
     public boolean deleteById(int id) {

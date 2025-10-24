@@ -13,9 +13,9 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
     private final Connection connection;
     private final RestaurantMapper restaurantMapper;
 
-    public CompleteEvaluationMapper(Connection connection, RestaurantMapper restaurantMapper) {
+    public CompleteEvaluationMapper(Connection connection) {
         this.connection = connection;
-        this.restaurantMapper = restaurantMapper;
+        this.restaurantMapper = new RestaurantMapper(connection);
     }
 
     /**
