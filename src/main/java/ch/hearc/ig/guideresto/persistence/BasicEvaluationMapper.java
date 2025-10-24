@@ -24,6 +24,7 @@ public class BasicEvaluationMapper extends AbstractMapper{
 
             ResultSet resultSet = preparedStatement.executeQuery();
             if(resultSet.next()){
+                //Continuer ici en pullant ce que a fait daniel pour restaurant
                 PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT *  FROM RESTAURANTS WHERE numero = ?");
                 return new BasicEvaluation(resultSet.getDate("date_eval"));
             }
