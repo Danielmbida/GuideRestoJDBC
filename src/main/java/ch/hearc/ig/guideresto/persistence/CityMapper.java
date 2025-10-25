@@ -2,10 +2,12 @@ package ch.hearc.ig.guideresto.persistence;
 
 import ch.hearc.ig.guideresto.business.City;
 import ch.hearc.ig.guideresto.business.IBusinessObject;
+import ch.hearc.ig.guideresto.business.RestaurantType;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -38,6 +40,34 @@ public class CityMapper extends AbstractMapper<City>{
             logger.error("Erreur dans CityMapper.findById", e);
         }
         return null;
+    }
+
+    public City findByZipCode(String namePart) {
+        String query = "SELECT * FROM VILLES WHERE UPPER(CODE_POSTAL)= ?";
+        City city = new City();
+
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, namePart.toUpperCase());
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                int id = rs.getInt("numero");
+                city = cache.get(id);
+
+                if (city == null) {
+                   city = new City(
+                            rs.getInt("numero"),
+                            rs.getString("code_postal"),
+                            rs.getString("nom_ville")
+                    );
+                    addToCache(city);
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la recherche de la ville avec code postal '{}': {}", namePart, e.getMessage());
+            throw new RuntimeException(e);
+        }
+        return city;
     }
 
     @Override

@@ -85,14 +85,14 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
             //opérateur ternaire pour gérer la conversion booléen -> string
             preparedStatement.setString(1, (object.getLikeRestaurant()) ? "T" : "F" );
             //caster la date en date sql
-            preparedStatement.setDate(2, (Date) object.getVisitDate());
+            preparedStatement.setDate(2, new Date(object.getVisitDate().getTime()));
             preparedStatement.setString(3, object.getIpAddress());
             preparedStatement.setInt(4, object.getRestaurant().getId());
             preparedStatement.executeUpdate();
             connection.commit();
             //pour rechercher ce que l'on vient de créer on part du principe que une personne ne peut mettre que un seul commentaire par jour et par restaurant
             PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT *  FROM LIKES WHERE date_eval = ? AND adresse_ip = ? AND fk_rest = ?");
-            preparedStatement1.setDate(1, (Date) object.getVisitDate());
+            preparedStatement1.setDate(1, new Date(object.getVisitDate().getTime()));
             preparedStatement1.setString(2, object.getIpAddress());
             preparedStatement1.setInt(3, object.getRestaurant().getId());
             ResultSet resultSet = preparedStatement1.executeQuery();
@@ -113,7 +113,7 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation>{
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("UPDATE LIKES SET appreciation = ?, date_eval = ?,  adresse_ip = ?, fk_rest = ? WHERE numero = ?");
             preparedStatement.setString(1, (object.getLikeRestaurant()) ? "T" : "F" );
-            preparedStatement.setDate(2, (Date) object.getVisitDate());
+            preparedStatement.setDate(2, new Date(object.getVisitDate().getTime()));
             preparedStatement.setString(3, object.getIpAddress());
             preparedStatement.setInt(4, object.getRestaurant().getId());
             preparedStatement.setInt(5, object.getId());

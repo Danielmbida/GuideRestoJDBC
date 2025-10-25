@@ -8,6 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 public class RestaurantMapper extends AbstractMapper<Restaurant> {
@@ -60,6 +61,79 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
         return null;
     }
 
+
+    public Set<Restaurant> findByNameLike(String namePart) {
+        String query = "SELECT * FROM RESTAURANTS WHERE UPPER(nom) LIKE ?";
+        Set<Restaurant> results = new LinkedHashSet<>();
+
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, "%" + namePart.toUpperCase() + "%");
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                int id = rs.getInt("numero");
+                Restaurant restaurant = cache.get(id);
+
+                if (restaurant == null) {
+                    restaurant = new Restaurant(
+                            id,
+                            rs.getString("nom"),
+                            rs.getString("description"),
+                            rs.getString("site_web"),
+                            rs.getString("adresse"),
+                            cityMapper.findById(rs.getInt("fk_vill")),
+                            restaurantTypeMapper.findById(rs.getInt("fk_type"))
+                    );
+                    addToCache(restaurant);
+                }
+                results.add(restaurant);
+            }
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la recherche des restaurants contenant '{}': {}", namePart, e.getMessage());
+            throw new RuntimeException(e);
+        }
+        return results;
+    }
+
+    public Set<Restaurant> findByCity(String namePart) {
+        String query = "SELECT * FROM RESTAURANTS R " +
+                "inner join VILLES V on V.NUMERO = R.FK_VILL " +
+                "WHERE UPPER(V.NOM_VILLE) LIKE ?";
+        Set<Restaurant> results = new LinkedHashSet<>();
+
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, "%" + namePart.toUpperCase() + "%");
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                int id = rs.getInt("numero");
+                Restaurant restaurant = cache.get(id);
+
+                if (restaurant == null) {
+                    restaurant = new Restaurant(
+                            id,
+                            rs.getString("nom"),
+                            rs.getString("description"),
+                            rs.getString("site_web"),
+                            rs.getString("adresse"),
+                            cityMapper.findById(rs.getInt("fk_vill")),
+                            restaurantTypeMapper.findById(rs.getInt("fk_type"))
+                    );
+                    addToCache(restaurant);
+                }
+
+                results.add(restaurant);
+            }
+
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la recherche des restaurants contenant '{}': {}", namePart, e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+        return results;
+    }
+
+
     /**
      * Récupère l'ensemble des restaurants enregistrés dans la base de données.
      *
@@ -107,6 +181,9 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
      */
     @Override
     public Restaurant create(Restaurant object) {
+        Integer generatedId = getSequenceValue();
+        object.setId(generatedId);
+
         String insertQuery = "INSERT INTO RESTAURANTS (NOM, DESCRIPTION, SITE_WEB, ADRESSE, FK_VILL, FK_TYPE) "
                 + "VALUES (?, ?, ?, ?, ?, ?)";
         try {
@@ -122,23 +199,23 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             connection.commit();
 
             // Recherche du restaurant inséré
-            PreparedStatement selectStatement = connection.prepareStatement(
-                    "SELECT * FROM RESTAURANTS WHERE ADRESSE = ? AND FK_TYPE = ?"
-            );
-            selectStatement.setString(1, object.getAddress().getStreet());
-            selectStatement.setInt(2, object.getType().getId());
-            ResultSet rs = selectStatement.executeQuery();
-
-            if (rs.next()) {
-                return findById(rs.getInt("numero"));
-            }
-            resetCache();
+//            PreparedStatement selectStatement = connection.prepareStatement(
+//                    "SELECT * FROM RESTAURANTS WHERE ADRESSE = ? AND FK_TYPE = ?"
+//            );
+//            selectStatement.setString(1, object.getAddress().getStreet());
+//            selectStatement.setInt(2, object.getType().getId());
+//            ResultSet rs = selectStatement.executeQuery();
+//
+//            if (rs.next()) {
+//                return findById(rs.getInt("numero"));
+//            }
+//            resetCache();
             connection.close();
+            return object;
         } catch (SQLException e) {
             logger.error("Erreur lors de la création du restaurant '{}' : {}", object.getName(), e.getMessage());
             throw new RuntimeException(e);
         }
-        return null;
     }
 
     /**
@@ -225,7 +302,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
     @Override
     protected String getSequenceQuery() {
-        return "";
+        return "SELECT SEQ_RESTAURANTS.NEXTVAL FROM DUAL";
     }
 
     @Override
