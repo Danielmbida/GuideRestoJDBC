@@ -1,9 +1,6 @@
 package ch.hearc.ig.guideresto.service;
 
-import ch.hearc.ig.guideresto.business.City;
-import ch.hearc.ig.guideresto.business.Localisation;
-import ch.hearc.ig.guideresto.business.Restaurant;
-import ch.hearc.ig.guideresto.business.RestaurantType;
+import ch.hearc.ig.guideresto.business.*;
 import ch.hearc.ig.guideresto.persistence.CityMapper;
 import ch.hearc.ig.guideresto.persistence.RestaurantMapper;
 import ch.hearc.ig.guideresto.persistence.RestaurantTypeMapper;
@@ -28,9 +25,9 @@ public class RestaurantService extends AbstractService {
     private static RestaurantService restaurantService = null;
 
     // Mappers utilisés pour la persistance des entités liées aux restaurants
-    private RestaurantMapper restaurantMapper;
-    private CityMapper cityMapper;
-    private RestaurantTypeMapper restaurantTypeMapper;
+    private final RestaurantMapper restaurantMapper;
+    private final CityMapper cityMapper;
+    private final RestaurantTypeMapper restaurantTypeMapper;
 
     /**
      * Constructeur privé (pattern Singleton).
@@ -38,7 +35,6 @@ public class RestaurantService extends AbstractService {
      */
     private RestaurantService() {
         super();
-
         // Initialisation des mappers avec la connexion héritée d’AbstractService
         this.restaurantMapper = new RestaurantMapper(connection);
         this.cityMapper = new CityMapper(connection);
@@ -71,13 +67,24 @@ public class RestaurantService extends AbstractService {
     }
 
     /**
-     * Recherche un restaurant par son nom.
+     * Recherche un restaurant par son nom exact.
      *
-     * @param name Nom du restaurant à rechercher.
-     * @return L’objet {@link Restaurant} correspondant, ou null s’il n’existe pas.
+     * @param name Nom exact du restaurant à rechercher.
+     * @return L’objet {@link Restaurant} correspondant, ou {@code null} s’il n’existe pas.
      */
     public Restaurant getRestaurantByName(String name) {
         return restaurantMapper.findByName(name);
+    }
+
+    /**
+     * Recherche des restaurants dont le nom contient une sous-chaîne donnée
+     * (recherche "LIKE").
+     *
+     * @param name Sous-chaîne à rechercher dans le nom des restaurants.
+     * @return Un ensemble de {@link Restaurant} dont le nom correspond partiellement.
+     */
+    public Set<Restaurant> getRestaurantByNameLike(String name) {
+        return restaurantMapper.findByNameLike(name);
     }
 
     /**
@@ -85,12 +92,12 @@ public class RestaurantService extends AbstractService {
      *
      * @return Un ensemble d’objets {@link City}.
      */
-    public Set<City> GetVillesRestaurants() {
+    public Set<City> getVillesRestaurants() {
         return cityMapper.findAll();
     }
 
     /**
-     * Recherche tous les restaurants appartenant à une ville donnée.
+     * Recherche tous les restaurants appartenant à une ville donnée (par son nom).
      *
      * @param city Nom de la ville.
      * @return Un ensemble d’objets {@link Restaurant} situés dans la ville spécifiée.
@@ -98,29 +105,6 @@ public class RestaurantService extends AbstractService {
     public Set<Restaurant> getRestaurantsByCityName(String city) {
         City city1 = cityMapper.findByName(city);
         return restaurantMapper.findByCityId(city1.getId());
-    }
-
-    /**
-     * Recherche tous les restaurants appartenant à une ville à partir de son code postal.
-     *
-     * @param zipCode Code postal de la ville.
-     * @return Un ensemble d’objets {@link Restaurant} correspondant.
-     */
-    public Set<Restaurant> getRestaurantsZipCode(String zipCode) {
-        // ⚠️ Correction : il serait logique d’utiliser findByZipCode ici
-        City city1 = cityMapper.findByName(zipCode);
-        return restaurantMapper.findByCityId(city1.getId());
-    }
-
-    /**
-     * Recherche tous les restaurants appartenant à un type gastronomique donné.
-     *
-     * @param type Libellé du type gastronomique (ex. "Italien", "Chinois").
-     * @return Un ensemble d’objets {@link Restaurant} appartenant au type spécifié.
-     */
-    public Set<Restaurant> getRestaurantByType(String type) {
-        RestaurantType restaurantType = this.restaurantTypeMapper.findByType(type);
-        return restaurantMapper.findByTypeId(restaurantType.getId());
     }
 
     // ---------------------------------------------------------------
@@ -136,9 +120,10 @@ public class RestaurantService extends AbstractService {
      * @param street          Adresse (rue) du restaurant.
      * @param city            Ville dans laquelle se trouve le restaurant.
      * @param restaurantType  Type gastronomique du restaurant.
+     * @return Le {@link Restaurant} nouvellement créé (et persisté).
      */
-    public void addRestaurant(String name, String description, String website,
-                              String street, City city, RestaurantType restaurantType) {
+    public Restaurant addRestaurant(String name, String description, String website,
+                                    String street, City city, RestaurantType restaurantType) {
         // Création d’un nouvel objet Restaurant et initialisation de ses attributs
         Restaurant restaurant = new Restaurant();
         restaurant.setName(name);
@@ -154,7 +139,7 @@ public class RestaurantService extends AbstractService {
         restaurant.setType(restaurantType);
 
         // Persistance dans la base via le mapper
-        restaurantMapper.create(restaurant);
+        return restaurantMapper.create(restaurant);
     }
 
     /**
@@ -173,5 +158,61 @@ public class RestaurantService extends AbstractService {
      */
     public void editRestaurant(Restaurant restaurant) {
         restaurantMapper.update(restaurant);
+    }
+
+    /**
+     * Retourne la ville correspondant à un code postal donné.
+     * <p><b>Note :</b> le nom de la méthode contient une coquille (“Citi”). Conservé
+     * tel quel pour compatibilité ; préférer un renommage ultérieur vers {@code getCityByZipCode}.</p>
+     *
+     * @param zipCode Code postal.
+     * @return La {@link City} correspondant au code postal, ou {@code null} si introuvable.
+     */
+    public City getCitiByZipCode(String zipCode) {
+        return cityMapper.findByZipCode(zipCode);
+    }
+
+    /**
+     * Crée et persiste une nouvelle ville.
+     *
+     * @param city Ville à créer.
+     * @return La {@link City} persistée.
+     */
+    public City createCity(City city) {
+        return cityMapper.create(city);
+    }
+
+    /**
+     * Retourne un type de restaurant par son libellé.
+     *
+     * @param label Libellé du type (ex. “Italien”).
+     * @return Le {@link RestaurantType} correspondant, ou {@code null} si introuvable.
+     */
+    public RestaurantType getTypeByLabel(String label) {
+        return restaurantTypeMapper.findByLabel(label);
+    }
+
+    /**
+     * Retourne l’ensemble des types de restaurant disponibles.
+     *
+     * @return Un ensemble de {@link RestaurantType}.
+     */
+    public Set<RestaurantType> getAllRestaurantTypes() {
+        return restaurantTypeMapper.findAll();
+    }
+
+    // ---------------------------------------------------------------
+    // ---------------------- Cycle de vie / I/O ----------------------
+    // ---------------------------------------------------------------
+
+    /**
+     * Ferme proprement les ressources utilisées par le service (connexion JDBC).
+     * <p>
+     * Délègue à {@link AbstractService#close()} afin de rendre la connexion au pool
+     * (si pool) ou de fermer physiquement la connexion.
+     * </p>
+     */
+    public void close() {
+        super.close();
     }
 }

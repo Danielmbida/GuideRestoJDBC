@@ -1,7 +1,6 @@
 package ch.hearc.ig.guideresto.persistence;
 
 import ch.hearc.ig.guideresto.business.*;
-import oracle.jdbc.proxy.annotation.Pre;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -148,10 +147,10 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             }
         }
 
-        String query = "SELECT * FROM RESTAURANTS WHERE NOM = ?";
+        String query = "SELECT * FROM RESTAURANTS WHERE UPPER(NOM) = ?";
         try {
             PreparedStatement stmt = this.connection.prepareStatement(query);
-            stmt.setString(1, name);
+            stmt.setString(1, name.toUpperCase());
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
@@ -327,19 +326,6 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             insertStatement.executeUpdate();
 
             connection.commit();
-
-            // Recherche du restaurant inséré
-//            PreparedStatement selectStatement = connection.prepareStatement(
-//                    "SELECT * FROM RESTAURANTS WHERE ADRESSE = ? AND FK_TYPE = ?"
-//            );
-//            selectStatement.setString(1, object.getAddress().getStreet());
-//            selectStatement.setInt(2, object.getType().getId());
-//            ResultSet rs = selectStatement.executeQuery();
-//
-//            if (rs.next()) {
-//                return findById(rs.getInt("numero"));
-//            }
-//            resetCache();
             connection.close();
             return object;
         } catch (SQLException e) {

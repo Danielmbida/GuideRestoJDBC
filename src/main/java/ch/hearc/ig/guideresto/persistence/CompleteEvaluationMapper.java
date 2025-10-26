@@ -172,6 +172,7 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
      */
     @Override
     public boolean update(CompleteEvaluation object) {
+        System.out.println(object.getRestaurant().getId());
         String query = "UPDATE COMMENTAIRES SET DATE_EVAL = ?, FK_REST = ?, COMMENTAIRE = ?, NOM_UTILISATEUR = ? WHERE NUMERO = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setDate(1, new java.sql.Date(object.getVisitDate().getTime()));

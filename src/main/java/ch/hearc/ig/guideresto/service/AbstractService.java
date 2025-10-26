@@ -29,10 +29,26 @@ public class AbstractService {
                     props.getProperty("database.username"),
                     props.getProperty("database.password")
             );
+            this.connection.setAutoCommit(false);
 
         }catch(Exception e){
             logger.error("Erreur lors de la connection à la bd : " + e.getMessage());
         }
 
+    }
+
+    /**
+     * Ferme proprement la connexion JDBC (rend au pool si pool, sinon fermeture physique).
+     * À appeler depuis la couche de présentation via un shutdown hook.
+     */
+    public void close() {
+        try {
+            if (this.connection != null && !this.connection.isClosed()) {
+                this.connection.close();
+                logger.info("Connexion JDBC fermée proprement.");
+            }
+        } catch (Exception e) {
+            logger.warn("Erreur lors de la fermeture de la connexion JDBC: " + e.getMessage());
+        }
     }
 }

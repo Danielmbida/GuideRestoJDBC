@@ -73,9 +73,9 @@ public class CityMapper extends AbstractMapper<City> {
             }
         }
 
-        String query = "SELECT * FROM VILLES WHERE NOM_VILLE = ?";
+        String query = "SELECT * FROM VILLES WHERE upper(NOM_VILLE) LIKE ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, name);
+            stmt.setString(1, "%" + name.toUpperCase() + "%");
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {

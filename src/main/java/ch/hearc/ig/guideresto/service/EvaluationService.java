@@ -1,11 +1,10 @@
 package ch.hearc.ig.guideresto.service;
 
-import ch.hearc.ig.guideresto.business.BasicEvaluation;
-import ch.hearc.ig.guideresto.business.CompleteEvaluation;
-import ch.hearc.ig.guideresto.business.Grade;
-import ch.hearc.ig.guideresto.business.Restaurant;
+import ch.hearc.ig.guideresto.business.*;
 import ch.hearc.ig.guideresto.persistence.BasicEvaluationMapper;
 import ch.hearc.ig.guideresto.persistence.CompleteEvaluationMapper;
+import ch.hearc.ig.guideresto.persistence.EvaluationCriteriaMapper;
+import ch.hearc.ig.guideresto.persistence.GradeMapper;
 
 import java.util.Date;
 import java.util.Set;
@@ -23,6 +22,8 @@ public class EvaluationService extends AbstractService {
     // Mappers de persistance
     private BasicEvaluationMapper basicEvaluationMapper;
     private CompleteEvaluationMapper completeEvaluationMapper;
+    private EvaluationCriteriaMapper evaluationCriteriaMapper;
+    private GradeMapper gradeMapper;
 
     /**
      * Constructeur privé : initialisation des mappers avec la connexion héritée.
@@ -33,6 +34,12 @@ public class EvaluationService extends AbstractService {
         // Initialisation des mappers de persistance
         this.basicEvaluationMapper = new BasicEvaluationMapper(connection);
         this.completeEvaluationMapper = new CompleteEvaluationMapper(connection);
+        this.evaluationCriteriaMapper = new EvaluationCriteriaMapper(connection);
+        this.gradeMapper = new GradeMapper(connection);
+    }
+
+    public Set<EvaluationCriteria> getAllEvaluationCriterias() {
+        return evaluationCriteriaMapper.findAll();
     }
 
     /**
@@ -165,7 +172,14 @@ public class EvaluationService extends AbstractService {
         completeEvaluation.setComment(comment);
         completeEvaluation.setUsername(username);
         completeEvaluation.setGrades(grades);
+
+        System.out.println(completeEvaluation.getId());
+
         // Persistance
         this.completeEvaluationMapper.create(completeEvaluation);
+        for (Grade grade : completeEvaluation.getGrades()) {
+            grade.setEvaluation(completeEvaluation);
+            gradeMapper.create(grade);
+        }
     }
 }

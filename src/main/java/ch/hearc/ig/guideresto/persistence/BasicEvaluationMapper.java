@@ -1,13 +1,13 @@
 package ch.hearc.ig.guideresto.persistence;
 
 import ch.hearc.ig.guideresto.business.BasicEvaluation;
-import ch.hearc.ig.guideresto.business.Restaurant;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -18,8 +18,8 @@ import java.util.Set;
  */
 public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
 
-    private Connection connection; // Connexion JDBC active
-    private RestaurantMapper restaurantMapper; // Mapper pour les restaurants liés
+    private final Connection connection; // Connexion JDBC active
+    private final RestaurantMapper restaurantMapper; // Mapper pour les restaurants liés
 
     /**
      * Constructeur du mapper.
@@ -53,7 +53,7 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
                 BasicEvaluation basicEvaluation = new BasicEvaluation(
                         resultSet.getDate("date_eval"),
                         restaurantMapper.findById(resultSet.getInt("fk_rest")),
-                        (resultSet.getString("APPRECIATION") == "T" ? true : false),
+                        (Objects.equals(resultSet.getString("APPRECIATION"), "T")),
                         resultSet.getString("ADRESSE_IP")
                 );
                 this.addToCache(basicEvaluation);
@@ -159,7 +159,7 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
                     "INSERT INTO LIKES(appreciation, date_eval, adresse_ip, fk_rest) VALUES (?, ?, ?, ?)"
             );
             preparedStatement.setString(1, (object.getLikeRestaurant()) ? "T" : "F");
-            preparedStatement.setDate(2, (Date) object.getVisitDate());
+            preparedStatement.setDate(2, new Date(object.getVisitDate().getTime()));
             preparedStatement.setString(3, object.getIpAddress());
             preparedStatement.setInt(4, object.getRestaurant().getId());
             preparedStatement.executeUpdate();
@@ -170,7 +170,7 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
             PreparedStatement preparedStatement1 = connection.prepareStatement(
                     "SELECT * FROM LIKES WHERE date_eval = ? AND adresse_ip = ? AND fk_rest = ?"
             );
-            preparedStatement1.setDate(1, (Date) object.getVisitDate());
+            preparedStatement1.setDate(1, new Date(object.getVisitDate().getTime()));
             preparedStatement1.setString(2, object.getIpAddress());
             preparedStatement1.setInt(3, object.getRestaurant().getId());
             ResultSet resultSet = preparedStatement1.executeQuery();
@@ -206,7 +206,7 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
                     "UPDATE LIKES SET appreciation = ?, date_eval = ?, adresse_ip = ?, fk_rest = ? WHERE numero = ?"
             );
             preparedStatement.setString(1, (object.getLikeRestaurant()) ? "T" : "F");
-            preparedStatement.setDate(2, (Date) object.getVisitDate());
+            preparedStatement.setDate(2, new Date(object.getVisitDate().getTime()));
             preparedStatement.setString(3, object.getIpAddress());
             preparedStatement.setInt(4, object.getRestaurant().getId());
             preparedStatement.setInt(5, object.getId());
