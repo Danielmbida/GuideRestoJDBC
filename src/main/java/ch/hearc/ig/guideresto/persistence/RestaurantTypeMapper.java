@@ -1,6 +1,7 @@
 package ch.hearc.ig.guideresto.persistence;
 
 import ch.hearc.ig.guideresto.business.EvaluationCriteria;
+import ch.hearc.ig.guideresto.business.Restaurant;
 import ch.hearc.ig.guideresto.business.RestaurantType;
 
 import java.sql.Connection;
@@ -8,6 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
@@ -50,6 +52,35 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
         }
         return null;
     }
+
+    public RestaurantType findByLabel(String namePart) {
+        String query = "SELECT * FROM TYPES_GASTRONOMIQUES WHERE UPPER(LIBELLE)= ?";
+        RestaurantType restaurantType = new RestaurantType();
+
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, namePart.toUpperCase());
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                int id = rs.getInt("numero");
+                restaurantType = cache.get(id);
+
+                if (restaurantType == null) {
+                    restaurantType = new RestaurantType(
+                            id,
+                            rs.getString("libelle"),
+                            rs.getString("DESCRIPTION")
+                    );
+                    addToCache(restaurantType);
+                }
+                            }
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la recherche du type gastronomique contenant '{}': {}", namePart, e.getMessage());
+            throw new RuntimeException(e);
+        }
+        return restaurantType;
+    }
+
 
     /**
      * Recherche un type gastronomique par son libellé.

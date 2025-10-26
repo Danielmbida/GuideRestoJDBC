@@ -96,6 +96,9 @@ public class GradeMapper extends AbstractMapper<Grade> {
      */
     @Override
     public Grade create(Grade object) {
+        Integer generatedId = getSequenceValue();
+        object.setId(generatedId);
+
         String query = "INSERT INTO NOTES (numero, note, fk_comm, fk_crit) VALUES (?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, object.getId());
@@ -108,7 +111,7 @@ public class GradeMapper extends AbstractMapper<Grade> {
             }
             resetCache();
             connection.commit();
-            return findById(object.getId());
+            return object;
         } catch (SQLException e) {
             logger.error("Erreur lors de la création de la note : {}", e.getMessage());
             throw new RuntimeException(e);
@@ -174,7 +177,7 @@ public class GradeMapper extends AbstractMapper<Grade> {
     @Override
     protected String getSequenceQuery() {
         // Exemple : "SELECT SEQ_NOTES.NEXTVAL FROM DUAL" si tu utilises une séquence Oracle
-        return "";
+        return "SELECT SEQ_NOTES.NEXTVAL FROM DUAL";
     }
 
     @Override

@@ -139,12 +139,16 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
      */
     @Override
     public CompleteEvaluation create(CompleteEvaluation object) {
-        String query = "INSERT INTO COMMENTAIRES (DATE_EVAL, FK_REST, COMMENTAIRE, NOM_UTILISATEUR) VALUES (?, ?, ?, ?)";
+        Integer generatedId = getSequenceValue();
+        object.setId(generatedId);
+
+        String query = "INSERT INTO COMMENTAIRES (NUMERO,DATE_EVAL, FK_REST, COMMENTAIRE, NOM_UTILISATEUR) VALUES (?,?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setDate(1, new java.sql.Date(object.getVisitDate().getTime()));
-            stmt.setInt(2, object.getRestaurant().getId());
-            stmt.setString(3, object.getComment());
-            stmt.setString(4, object.getUsername());
+            stmt.setInt(1, generatedId);
+            stmt.setDate(2, new java.sql.Date(object.getVisitDate().getTime()));
+            stmt.setInt(3, object.getRestaurant().getId());
+            stmt.setString(4, object.getComment());
+            stmt.setString(5, object.getUsername());
             int affectedRows = stmt.executeUpdate();
 
             if (affectedRows == 0) {
@@ -153,7 +157,7 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
 
             connection.commit();
             resetCache();
-            return findById(object.getId());
+            return object;
         } catch (SQLException e) {
             logger.error("Erreur lors de la création de l'évaluation complète : {}", e.getMessage());
             throw new RuntimeException(e);
@@ -234,7 +238,7 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
     @Override
     protected String getSequenceQuery() {
         // Si besoin d'une séquence Oracle : ex "SELECT SEQ_COMMENTAIRES.NEXTVAL FROM DUAL"
-        return "";
+        return "SELECT SEQ_EVAL.NEXTVAL FROM DUAL";
     }
 
     @Override
