@@ -104,6 +104,49 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
     }
 
     /**
+     * Récupère toutes les évaluations associées à un restaurant donné (clé étrangère fk_rest).
+     *
+     * @param restaurantId Identifiant unique du restaurant (colonne fk_rest).
+     * @return Un ensemble d’objets {@link BasicEvaluation} liés au restaurant spécifié.
+     */
+    public Set<BasicEvaluation> findByRestaurantId(int restaurantId) {
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    "SELECT * FROM LIKES WHERE FK_REST = ?"
+            );
+            preparedStatement.setInt(1, restaurantId);
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            Set<BasicEvaluation> set = new HashSet<>();
+
+            while (resultSet.next()) {
+                int id = resultSet.getInt("numero");
+                BasicEvaluation basicEvaluation = cache.get(id);
+
+                if (basicEvaluation == null) {
+                    // Création d’un nouvel objet BasicEvaluation et ajout au cache
+                    basicEvaluation = new BasicEvaluation(
+                            resultSet.getDate("date_eval"),
+                            restaurantMapper.findById(resultSet.getInt("fk_rest")),
+                            // Conversion 'T'/'F' en booléen
+                            (resultSet.getString("APPRECIATION") == "T" ? true : false),
+                            resultSet.getString("ADRESSE_IP")
+                    );
+                    this.addToCache(basicEvaluation);
+                }
+                set.add(basicEvaluation);
+            }
+
+            return set;
+
+        } catch (Exception e) {
+            logger.error("Erreur lors de la récupération des évaluations pour le restaurant ID {} : {}", restaurantId, e.getMessage());
+            return null;
+        }
+    }
+
+
+    /**
      * Insère une nouvelle évaluation dans la base de données.
      *
      * @param object L’objet {@link BasicEvaluation} à insérer.

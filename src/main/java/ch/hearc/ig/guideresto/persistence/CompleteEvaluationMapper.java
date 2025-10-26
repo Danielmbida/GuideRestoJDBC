@@ -53,6 +53,48 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
     }
 
     /**
+     * Recherche toutes les évaluations complètes associées à un restaurant donné (clé étrangère fk_rest).
+     *
+     * @param restaurantId Identifiant unique du restaurant (colonne fk_rest).
+     * @return Un ensemble d’objets {@link CompleteEvaluation} liés au restaurant spécifié.
+     */
+    public Set<CompleteEvaluation> findByRestaurantId(int restaurantId) {
+        String query = "SELECT * FROM COMMENTAIRES WHERE FK_REST = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, restaurantId);
+            try (ResultSet rs = stmt.executeQuery()) {
+
+                Set<CompleteEvaluation> evaluations = new LinkedHashSet<>();
+
+                while (rs.next()) {
+                    int id = rs.getInt("numero");
+                    CompleteEvaluation evaluation = cache.get(id);
+
+                    if (evaluation == null) {
+                        // Création d’un nouvel objet CompleteEvaluation si non présent dans le cache
+                        evaluation = new CompleteEvaluation(
+                                id,
+                                rs.getDate("date_eval"),
+                                restaurantMapper.findById(rs.getInt("fk_rest")),
+                                rs.getString("commentaire"),
+                                rs.getString("nom_utilisateur")
+                        );
+                        addToCache(evaluation);
+                    }
+
+                    evaluations.add(evaluation);
+                }
+
+                return evaluations;
+            }
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la récupération des évaluations pour le restaurant ID {} : {}", restaurantId, e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    /**
      * Récupère toutes les évaluations complètes de la base.
      *
      * @return Un Set contenant tous les CompleteEvaluation.

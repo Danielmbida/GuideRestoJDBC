@@ -60,6 +60,77 @@ public class CityMapper extends AbstractMapper<City> {
     }
 
     /**
+     * Recherche une ville dans la base de données par son nom.
+     *
+     * @param name Nom de la ville à rechercher.
+     * @return L’objet {@link City} correspondant, ou null s’il n’existe pas.
+     */
+    public City findByName(String name) {
+        // Vérifie si une ville portant ce nom est déjà dans le cache
+        for (City cachedCity : cache.values()) {
+            if (cachedCity.getCityName().equalsIgnoreCase(name)) {
+                return cachedCity;
+            }
+        }
+
+        String query = "SELECT * FROM VILLES WHERE NOM_VILLE = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, name);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                // Construction de l'objet métier City à partir du ResultSet
+                City city = new City(
+                        rs.getInt("numero"),
+                        rs.getString("code_postal"),
+                        rs.getString("nom_ville")
+                );
+                addToCache(city); // Mise en cache pour préserver l'identité d'objet
+                return city;
+            }
+        } catch (Exception e) {
+            logger.error("Erreur dans CityMapper.findByName", e);
+        }
+        return null;
+    }
+
+    /**
+     * Recherche une ville dans la base de données par son code postal.
+     *
+     * @param zipCode Code postal de la ville à rechercher.
+     * @return L’objet {@link City} correspondant, ou null s’il n’existe pas.
+     */
+    public City findByZipCode(String zipCode) {
+        // Vérifie si une ville avec ce code postal est déjà dans le cache
+        for (City cachedCity : cache.values()) {
+            if (cachedCity.getZipCode().equalsIgnoreCase(zipCode)) {
+                return cachedCity;
+            }
+        }
+
+        String query = "SELECT * FROM VILLES WHERE CODE_POSTAL = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, zipCode);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                // Construction de l'objet métier City à partir du ResultSet
+                City city = new City(
+                        rs.getInt("numero"),
+                        rs.getString("code_postal"),
+                        rs.getString("nom_ville")
+                );
+                addToCache(city); // Mise en cache pour préserver l'identité d'objet
+                return city;
+            }
+        } catch (Exception e) {
+            logger.error("Erreur dans CityMapper.findByZipCode", e);
+        }
+        return null;
+    }
+
+
+    /**
      * Récupère toutes les villes enregistrées dans la base.
      *
      * @return Un ensemble contenant toutes les instances de {@link City}.

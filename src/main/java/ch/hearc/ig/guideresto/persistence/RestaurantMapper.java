@@ -61,6 +61,48 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
     }
 
     /**
+     * Recherche un restaurant dans la base de données par son nom.
+     *
+     * @param name Nom du restaurant à rechercher.
+     * @return L'objet {@link Restaurant} correspondant, ou null s'il n'existe pas.
+     */
+    public Restaurant findByName(String name) {
+        // Vérifie si un restaurant portant ce nom est déjà présent dans le cache
+        for (Restaurant cachedRestaurant : cache.values()) {
+            if (cachedRestaurant.getName().equalsIgnoreCase(name)) {
+                return cachedRestaurant;
+            }
+        }
+
+        String query = "SELECT * FROM RESTAURANTS WHERE NOM = ?";
+        try {
+            PreparedStatement stmt = this.connection.prepareStatement(query);
+            stmt.setString(1, name);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                Restaurant restaurant = new Restaurant(
+                        rs.getInt("numero"),
+                        rs.getString("nom"),
+                        rs.getString("description"),
+                        rs.getString("site_web"),
+                        rs.getString("adresse"),
+                        cityMapper.findById(rs.getInt("fk_vill")),
+                        restaurantTypeMapper.findById(rs.getInt("fk_type"))
+                );
+                // Ajoute au cache pour les appels suivants
+                this.addToCache(restaurant);
+                return restaurant;
+            }
+
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la recherche du restaurant avec le nom '{}' : {}", name, e.getMessage());
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
+
+    /**
      * Récupère l'ensemble des restaurants enregistrés dans la base de données.
      *
      * @return Un Set contenant tous les objets Restaurant.
@@ -97,6 +139,94 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             throw new RuntimeException(e);
         }
     }
+
+    /**
+     * Recherche tous les restaurants appartenant à une ville donnée (clé étrangère fk_vill).
+     *
+     * @param cityId Identifiant unique de la ville (colonne fk_vill).
+     * @return Un ensemble d’objets {@link Restaurant} appartenant à la ville spécifiée.
+     */
+    public Set<Restaurant> findByCityId(int cityId) {
+        String query = "SELECT * FROM RESTAURANTS WHERE FK_VILL = ?";
+        try (PreparedStatement stmt = this.connection.prepareStatement(query)) {
+            stmt.setInt(1, cityId);
+            ResultSet rs = stmt.executeQuery();
+
+            Set<Restaurant> restaurants = new HashSet<>();
+
+            while (rs.next()) {
+                int id = rs.getInt("numero");
+                Restaurant restaurant = cache.get(id);
+
+                if (restaurant == null) {
+                    // Création d'un nouvel objet Restaurant si non présent dans le cache
+                    restaurant = new Restaurant(
+                            id,
+                            rs.getString("nom"),
+                            rs.getString("description"),
+                            rs.getString("site_web"),
+                            rs.getString("adresse"),
+                            cityMapper.findById(rs.getInt("fk_vill")),
+                            restaurantTypeMapper.findById(rs.getInt("fk_type"))
+                    );
+                    this.addToCache(restaurant);
+                }
+
+                restaurants.add(restaurant);
+            }
+
+            return restaurants;
+
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la récupération des restaurants pour la ville ID {} : {}", cityId, e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Recherche tous les restaurants appartenant à un type gastronomique donné (clé étrangère fk_type).
+     *
+     * @param typeId Identifiant unique du type gastronomique (colonne fk_type).
+     * @return Un ensemble d’objets {@link Restaurant} correspondant au type spécifié.
+     */
+    public Set<Restaurant> findByTypeId(int typeId) {
+        String query = "SELECT * FROM RESTAURANTS WHERE FK_TYPE = ?";
+        try (PreparedStatement stmt = this.connection.prepareStatement(query)) {
+            stmt.setInt(1, typeId);
+            ResultSet rs = stmt.executeQuery();
+
+            Set<Restaurant> restaurants = new HashSet<>();
+
+            while (rs.next()) {
+                int id = rs.getInt("numero");
+                Restaurant restaurant = cache.get(id);
+
+                if (restaurant == null) {
+                    // Création d'un nouvel objet Restaurant si non présent dans le cache
+                    restaurant = new Restaurant(
+                            id,
+                            rs.getString("nom"),
+                            rs.getString("description"),
+                            rs.getString("site_web"),
+                            rs.getString("adresse"),
+                            cityMapper.findById(rs.getInt("fk_vill")),
+                            restaurantTypeMapper.findById(rs.getInt("fk_type"))
+                    );
+                    this.addToCache(restaurant);
+                }
+
+                restaurants.add(restaurant);
+            }
+
+            return restaurants;
+
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la récupération des restaurants pour le type ID {} : {}", typeId, e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+
 
     /**
      * Crée un nouveau restaurant dans la base de données.

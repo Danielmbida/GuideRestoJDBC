@@ -52,6 +52,43 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
     }
 
     /**
+     * Recherche un type gastronomique par son libellé.
+     *
+     * @param libelle Libellé du type gastronomique à rechercher.
+     * @return L'objet {@link RestaurantType} correspondant, ou null s'il n'existe pas.
+     */
+    public RestaurantType findByType(String libelle) {
+        // Vérifie si le type est déjà présent dans le cache
+        for (RestaurantType cachedType : cache.values()) {
+            if (cachedType.getLabel().equalsIgnoreCase(libelle)) {
+                return cachedType;
+            }
+        }
+
+        String query = "SELECT * FROM TYPES_GASTRONOMIQUES WHERE LIBELLE = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, libelle);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                // Construction de l'objet métier RestaurantType à partir du ResultSet
+                RestaurantType type = new RestaurantType(
+                        rs.getInt("NUMERO"),
+                        rs.getString("LIBELLE"),
+                        rs.getString("DESCRIPTION")
+                );
+                addToCache(type); // Mise en cache pour éviter les doublons en mémoire
+                return type;
+            }
+        } catch (SQLException e) {
+            logger.error("Erreur lors de la recherche du type gastronomique '{}' : {}", libelle, e.getMessage());
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
+
+
+    /**
      * Récupère tous les types gastronomiques existants dans la base de données.
      *
      * @return Un Set contenant tous les objets RestaurantType.
